@@ -23,6 +23,8 @@ class EncoderCNN(nn.Module):
 
 class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
+        super(DecoderRNN, self).__init__()
+        
         self.embed_size = embed_size
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -30,25 +32,29 @@ class DecoderRNN(nn.Module):
         
         
         
-        self.word_emb = nn.Linear(vocab_size, embed_size)
+        self.word_emb = nn.Embedding(vocab_size, embed_size)
+        
+        print(self.word_emb.weight.type())
         
         self.lstm = nn.LSTM(self.embed_size, self.hidden_size, self.num_layers, 
-                            dropout= 0.5 , batch_first=True)
+                            batch_first=True)
         
         # self.dropout = nn.Dropout(drop_prob)
         
-        self.fc = nn.Linear(n_hidden, vocab_size)
+        self.fc = nn.Linear(hidden_size, vocab_size)
     
     def forward(self, features, captions):
-        # input entire sequence as suggested in the project introduction 
-        embeddeds = [self.word_emb(caption) for caption in captions]
-        inputs = torch.cat([features], embeddeds)
+        # input entire sequence as suggested in the project introduction
         
-        hidden = (torch.randn(1, 1, 3), torch.randn(1, 1, 3))  # clean out hidden state
         
-        out, hidden = lstm(inputs, hidden)
+        embeddings = self.word_emb(captions)  # (batch_size, max_caption_length, embed_dim)
         
-        return out
+        embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
+        
+        out, hidden = self.lstm(embeddings)
+        
+        out_captions = self.fc(out[:, :-1, :]) # we don't need the last output which takes the input <end>
+        return out_captions
        
     def sample(self, inputs, states=None, max_len=20):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
