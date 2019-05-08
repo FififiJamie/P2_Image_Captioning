@@ -30,8 +30,6 @@ class DecoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         
-        
-        
         self.word_emb = nn.Embedding(vocab_size, embed_size)
         
         print(self.word_emb.weight.type())
@@ -46,14 +44,19 @@ class DecoderRNN(nn.Module):
     def forward(self, features, captions):
         # input entire sequence as suggested in the project introduction
         
+        # features is  (batch_size, embed_dim)
+        # captions is (batch_size, max_caption_length, 1) ?
         
         embeddings = self.word_emb(captions)  # (batch_size, max_caption_length, embed_dim)
         
+        # turn feature into (batch_size, 1, embed_dim) then append embedings
         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         
-        out, hidden = self.lstm(embeddings)
+        out, hidden = self.lstm(embeddings) # (batch_size, max_caption_length + 1, hidden_size)
         
-        out_captions = self.fc(out[:, :-1, :]) # we don't need the last output which takes the input <end>
+        # we don't need the last output which takes '<end>' as input
+        out_captions = self.fc(out[:, :-1, :])  # (batch_size, max_caption_length, vocab_size)
+        
         return out_captions
        
     def sample(self, inputs, states=None, max_len=20):
