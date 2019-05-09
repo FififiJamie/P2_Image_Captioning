@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
+import torch.nn.functional as F
 
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
@@ -61,4 +62,21 @@ class DecoderRNN(nn.Module):
        
     def sample(self, inputs, states=None, max_len=20):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-        pass
+        
+        caption_tokens = []
+        
+        out, hidden = self.lstm(inputs) # first word
+        out_captions = F.softmax(self.fc(out), 2) # we might not need softmax here since we are choosing the max
+        _, out_indexes = torch.max(out_captions, 2)
+        caption_tokens.append(out_indexes[0].item())
+        
+        for i in range(max_len - 1):
+            out, hidden = self.lstm(out, hidden)
+            
+            out_captions = F.softmax(self.fc(out), 2) # we might not need softmax here since we are choosing the max
+            
+            _, out_indexes = torch.max(out_captions, 2)
+            
+            caption_tokens.append(out_indexes[0].item())
+            
+        return caption_tokens;
