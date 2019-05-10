@@ -46,7 +46,7 @@ class DecoderRNN(nn.Module):
         # input entire sequence as suggested in the project introduction
         
         # features is  (batch_size, embed_dim)
-        # captions is (batch_size, max_caption_length, 1) ?
+        # captions is (batch_size, max_caption_length)
         
         embeddings = self.word_emb(captions)  # (batch_size, max_caption_length, embed_dim)
         
@@ -65,12 +65,17 @@ class DecoderRNN(nn.Module):
         
         caption_tokens = []
         
-        out, hidden = self.lstm(inputs) # first word
+        # first word
+        out, hidden = self.lstm(inputs) 
         out_captions = F.softmax(self.fc(out), 2) # we might not need softmax here since we are choosing the max
         _, out_indexes = torch.max(out_captions, 2)
+        print(out_indexes)
         caption_tokens.append(out_indexes[0].item())
         
         for i in range(max_len - 1):
+            print(out_indexes[0].unsqueeze(0).shape)
+            out = self.word_emb(out_indexes[0].unsqueeze(0))
+            
             out, hidden = self.lstm(out, hidden)
             
             out_captions = F.softmax(self.fc(out), 2) # we might not need softmax here since we are choosing the max
@@ -78,5 +83,7 @@ class DecoderRNN(nn.Module):
             _, out_indexes = torch.max(out_captions, 2)
             
             caption_tokens.append(out_indexes[0].item())
+            
+            
             
         return caption_tokens;
