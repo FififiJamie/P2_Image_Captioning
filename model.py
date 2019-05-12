@@ -31,28 +31,25 @@ class DecoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         
+        # embedding layer
         self.word_emb = nn.Embedding(vocab_size, embed_size)
         
-        print(self.word_emb.weight.type())
-        
+        # lstm layer
         self.lstm = nn.LSTM(self.embed_size, self.hidden_size, self.num_layers, 
                             batch_first=True)
         
         # self.dropout = nn.Dropout(drop_prob)
         
+        # FC layer to produce Logits
         self.fc = nn.Linear(hidden_size, vocab_size)
     
-
-        
     def forward(self, features, captions):
-        # input entire sequence as suggested in the project introduction
-        
         # features is  (batch_size, embed_dim)
         # captions is (batch_size, max_caption_length)
         
         embeddings = self.word_emb(captions)  # (batch_size, max_caption_length, embed_dim)
         
-        # turn feature into (batch_size, 1, embed_dim) then append embedings
+        # turn feature into (batch_size, 1, embed_dim) tensor then append embedings
         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         
         out, hidden = self.lstm(embeddings) # (batch_size, max_caption_length + 1, hidden_size)
@@ -93,7 +90,7 @@ class DecoderRNN(nn.Module):
             #    [[Words_31, Words_32, Words_33]]]
             # Where row id corresponds to previous nodes
             ps_next, top_words_next = out_captions.topk(beam_width) # (beam_width, 1, beam_width)
-            print(top_words_next.shape)
+            # print(top_words_next.shape)
 
             # Update conditional probabilities
             new_ps = ps_next * ps.view(beam_width, -1, 1) 
@@ -134,33 +131,22 @@ class DecoderRNN(nn.Module):
             sentences = new_sentences
             
         return new_sentences
-
-        
-    def sample(self, inputs, states=None, max_len=20):
+    
+    def sample(self, inputs, states=None, max_len=20, beam_width=3):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-        
         caption_tokens = []
         
-        
-        # first word
+        # first word (always <start> ?)
         out, hidden = self.lstm(inputs) 
         out_captions = F.softmax(self.fc(out), 2) # we might not need softmax here since we are choosing the max
         _, out_indexes = torch.max(out_captions, 2)
         
         caption_tokens.append(out_indexes[0].item())
         
-        
-        # Beam search, ini first nodes
-#         beam_width = 3
-#         hiddens = hidden
-#         for _ in range(beam_width - 1):
-#             hiddens = (torch.cat((hiddens[0], hidden[0]), 1), torch.cat((hiddens[1], hidden[1]), 1)) 
-            
-#         ps, top_words = out_captions.topk(beam_width) 
-        
-        beam_width = 3
+        # Beam search results
         beam_sentences = self.beam_search(beam_width, max_len, out_captions, hidden[0], hidden[1])
-      
+        
+        # Greedy results
         for i in range(max_len - 1):
             out = self.word_emb(out_indexes[0].unsqueeze(0))
             
